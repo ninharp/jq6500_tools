@@ -21,6 +21,7 @@
 *.dylib
 
 # Executables
+jq6500flash
 *.exe
 *.out
 *.app
@@ -35,7 +36,9 @@
 ISO/
 temp/
 
-#Image files
+# Image files
 *.img
 *.iso
 *.dat
+
+# Bin
