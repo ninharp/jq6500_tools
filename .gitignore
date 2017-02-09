@@ -31,3 +31,11 @@
 # Debug files
 *.dSYM/
 *.su
+
+ISO/
+temp/
+
+#Image files
+*.img
+*.iso
+*.dat
