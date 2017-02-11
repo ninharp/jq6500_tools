@@ -39,6 +39,8 @@ SOFTWARE.
 #include <stdint.h>
 #include <getopt.h>
 #include <string.h>
+#include <errno.h>
+#include <err.h>
 
 #include <jq6500fs.h>
 /* Private typedef -----------------------------------------------------------*/
@@ -58,48 +60,63 @@ int main(int argc, char *argv[])
 	printf("JQT6500 Flash Tool " VERSION " - (c) by Michael Sauer\n\n");
 
 	int option = 0;
-    int type = -1;
     char *infile = NULL;
     char *outfile = NULL;
-    char *direction = NULL;
+    char *outdir = NULL;
+    char *endptr;
+    int offset = BASE;
+    int raw = 0;
+    int read_iso = 0;
 
     //Specifying the expected options
-    while ((option = getopt(argc, argv, "f:o:t:d:")) != -1) {
+    while ((option = getopt(argc, argv, "f:s:i:r:R:h")) != -1) {
         switch (option) {
-             case 't' : type = atoi(optarg);
-                 		break;
+             case 's' : errno = 0;
+                        offset = strtol(optarg, &endptr, 0);
+                        if (errno != 0 || *optarg == 0 || *endptr == 0) {
+                            errx(1, "Invalid number in offset: '%s'", optarg);
+                        }
+                        break;
+             case 'i' : outfile = optarg;
+                        read_iso = 1;
+                        break;
              case 'f' : infile = optarg; 
                  		break;
-             case 'o' : outfile = optarg;
+             case 'r' : outfile = optarg;
                  		break;
-             case 'd' : direction = optarg;
-                 		break;
+             case 'R' : outfile = optarg;
+                        break;
+             case 'h' : print_usage();
+                        break;
              default: print_usage(); 
-                 exit(EXIT_FAILURE);
+                      exit(EXIT_FAILURE);
         }
     }
-    if (infile == NULL || outfile == NULL || type == -1 || direction == NULL) {
-        goto ERROR_USAGE;
+    if (infile == NULL) {
+        print_usage();
+        exit(EXIT_FAILURE);
     } else {
-    	if (direction[0] == 'r') {
-    		printf("Downloading %s from '%s' to '%s'\n", type==0 ? "ISO File" : "MP3 File", infile, outfile);
-    		if (jq6500_read_iso(infile, outfile) != NO_ERROR)
-    			goto ERROR_READING;
-    	} else if (direction[0] == 'w') {
-    		printf("Uploading %s '%s' to '%s'\n", type==0 ? "ISO File" : "MP3 File", infile, outfile);
-    	} else {
-    		goto ERROR_USAGE;
-    	}
+        printf("Using Device/File: %s\n", infile);
+        printf("Offset: 0x%x\n", offset);
+        if (read_iso == 1 && raw == 0) {
+            if (outfile == NULL) {
+                printf("No outfile specified for ISO creation\n");
+                exit(EXIT_FAILURE);
+            }
+            printf("Downloading ISO from '%s' to '%s'\n", infile, outfile);
+            int size = 0;
+            if (jq6500_read_iso_F(infile, outfile) == NO_ERROR)
+            {
+                printf("Done.\n");    
+            } else {
+                fprintf(stderr, "I/O Error\n\n");
+                exit(EXIT_FAILURE);
+            }
+        } else if (read_iso == 0 && raw == 1) {
+            printf("RAW Mode enabled!\n");
+        }
     	exit(EXIT_SUCCESS);
     }
-
-ERROR_READING:
-	fprintf(stderr, "I/O Error\n\n");
-	exit(EXIT_FAILURE);
-
-ERROR_USAGE:
-	print_usage();
-	exit(EXIT_FAILURE);
 }
 
 /** 
@@ -109,5 +126,11 @@ ERROR_USAGE:
  */
 void print_usage()
 {
-    printf("Usage: jq6500flash -t [type] -d [r/w] -f [file] -o [file]\n");
+    printf("Usage: jq6500flash [options]\n\n"
+        "-f device/file    File or SCSI Device with JQFS\n"
+        "-s address        Start Address to write to (Default: 0x%x)\n"
+        "-i file           Read out ISO from JQFS to file\n"
+        "-r dir            Read out JQFS to directory\n"
+        "-R file           Write file in Raw mode to device\n"
+        "-h                This help\n\n", BASE);
 }
