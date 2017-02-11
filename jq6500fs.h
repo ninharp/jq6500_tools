@@ -51,6 +51,7 @@ typedef enum {
 /* Exported variables ---------------------------------------------------------*/
 /* Exported function prototypes -----------------------------------------------*/
 JQ6500_ERR_t jq6500_read_iso_F(char *filename, char *infile);
-JQ6500_ERR_t jq6500_read_files_F(char *infile, char *outdir);
+JQ6500_ERR_t jq6500_read_files_F(char *infile, char *outdir, int offset);
+JQ6500_ERR_t jq6500_read_jqfs(uint8_t *buf, int offset, int len, char *outdir);
 
 #endif // JQ6500FS_H_

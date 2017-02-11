@@ -9,7 +9,9 @@ solution to make an own tool for that purposes.
 
 Its currently in alpha stage and still quiet buggy.
 
-Copyright (c) 2017 Michael Sauer <sauer@gmail.com>
+Copyright (c) 2017 Michael Sauer <sauer@gmail.com> 
+Some adaptions of the JQFS Functions 
+Copyright (C) 2017 Reinhard Max <reinhard@m4x.de>
 
 MIT License
 
@@ -67,6 +69,7 @@ int main(int argc, char *argv[])
     int offset = BASE;
     int raw = 0;
     int read_iso = 0;
+    int read_files = 0;
 
     //Specifying the expected options
     while ((option = getopt(argc, argv, "f:s:i:r:R:h")) != -1) {
@@ -82,11 +85,14 @@ int main(int argc, char *argv[])
                         break;
              case 'f' : infile = optarg; 
                  		break;
-             case 'r' : outfile = optarg;
+             case 'r' : outdir = optarg;
+                        read_files = 1;
                  		break;
              case 'R' : outfile = optarg;
+                        raw = 1;
                         break;
              case 'h' : print_usage();
+                        exit(EXIT_FAILURE);
                         break;
              default: print_usage(); 
                       exit(EXIT_FAILURE);
@@ -98,13 +104,15 @@ int main(int argc, char *argv[])
     } else {
         printf("Using Device/File: %s\n", infile);
         printf("Offset: 0x%x\n", offset);
-        if (read_iso == 1 && raw == 0) {
+        if (outdir != NULL)
+            printf("Output Directory: %s\n", outdir);
+
+        if (read_iso == 1 && raw == 0 && read_files == 0) {
             if (outfile == NULL) {
                 printf("No outfile specified for ISO creation\n");
                 exit(EXIT_FAILURE);
             }
             printf("Downloading ISO from '%s' to '%s'\n", infile, outfile);
-            int size = 0;
             if (jq6500_read_iso_F(infile, outfile) == NO_ERROR)
             {
                 printf("Done.\n");    
@@ -112,8 +120,14 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "I/O Error\n\n");
                 exit(EXIT_FAILURE);
             }
-        } else if (read_iso == 0 && raw == 1) {
+        } else if (read_iso == 0 && raw == 1 && read_files == 0) {
             printf("RAW Mode enabled!\n");
+        } else if (read_iso == 0 && raw == 0 && read_files == 1) {
+            printf("Read out JQFS to Directory...\n");
+            jq6500_read_files_F(infile, outdir, offset);
+        } else {
+            print_usage();
+            exit(EXIT_FAILURE);
         }
     	exit(EXIT_SUCCESS);
     }

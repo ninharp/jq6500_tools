@@ -90,7 +90,8 @@ void _w32le(uint8_t **loc, uint32_t val)
     (*loc) += 4;
 }
 /* Public functions ----------------------------------------------------------*/
-JQ6500_ERR_t jq6500_read_iso_F(char *infile, char *outfile) {
+JQ6500_ERR_t jq6500_read_iso_F(char *infile, char *outfile)
+{
 	FILE *ptr_infile;
 	FILE *ptr_outfile;
 
@@ -138,6 +139,107 @@ JQ6500_ERR_t jq6500_read_iso_F(char *infile, char *outfile) {
 	}
 	
 	return(UNKNOWN_ERROR);
+}
+
+JQ6500_ERR_t jq6500_read_files_F(char *infile, char *outdir, int offset)
+{
+	FILE *ptr_infile;
+	FILE *ptr_outfile;
+
+	unsigned long fileLen;
+	uint8_t *temp_buffer;
+
+	ptr_infile = fopen(infile, "r");
+	if (!ptr_infile)
+	{
+		if (!ptr_infile)
+			fprintf(stderr, "Unable to open file '%s'!\n", infile);
+		return(FILE_OPEN_ERROR);
+	}
+
+	//Get file length
+	fseek(ptr_infile, 0, SEEK_END);
+	fileLen = ftell(ptr_infile);
+	fseek(ptr_infile, 0, SEEK_SET);
+	printf("File Length: %0.2f MB\n", (float)fileLen/1024/1024);
+
+	//Allocate memory
+	temp_buffer = (uint8_t *)malloc(fileLen+1);
+	if (!temp_buffer)
+	{
+		fprintf(stderr, "Memory allocation Error!\n");
+        fclose(ptr_infile);
+		return(MEMORY_ERROR);
+	}
+
+	fread(temp_buffer, fileLen, 1, ptr_infile);
+	fclose(ptr_infile);
+
+	if (jq6500_read_jqfs(temp_buffer, offset, fileLen, outdir) == NO_ERROR) {
+		printf("Done.\n");
+	}
+
+	return(NO_ERROR);
+}
+
+uint32_t _c32(uint8_t *buf, int offset)
+{
+	uint32_t t1 = buf[offset+3]<<24;
+	uint32_t t2 = buf[offset+2]<<16;
+	uint32_t t3 = buf[offset+1]<<8;
+	uint32_t t4 = buf[offset];
+	return t1+t2+t3+t4;
+}
+
+JQ6500_ERR_t jq6500_read_jqfs(uint8_t *buf, int offset, int len, char *outdir)
+{
+	/*
+	for (int i = 0; i < len; i++) {
+		printf("0x%02x ", (uint8_t)buf[i]);
+		if ((i % 16) == 0)
+			printf("\n0x%06x ", i+1);
+	}
+	*/
+	int *dir_offsets;
+	int *file_offsets;
+	int *file_sizes;
+	int dir = 0;
+	int count_dirs = _c32(buf, offset);
+	dir_offsets = (int*)malloc(count_dirs*sizeof(uint32_t));
+	printf("Count Directories: %d\n", count_dirs);
+	offset += 4;
+	for (int c = 0; c < count_dirs; c++) {
+		int backup_offset = offset;
+		dir_offsets[dir] = _c32(buf, offset);
+		printf("Offset %d: 0x%06x\n", dir, dir_offsets[dir]);
+		dir++;
+		int count_files = buf[_c32(buf, offset)];
+		file_offsets = (int*)malloc(count_files*sizeof(uint32_t));
+		file_sizes = (int*)malloc(count_files*sizeof(uint32_t));
+		printf("Offset %d Count Files: %d\n", dir, count_files);
+		for (int cf = 0; cf < count_files; cf++) {
+			file_offsets[cf] = _c32(buf, offset);
+			printf("Offset %d (0x%06x) File %d Offset: 0x%06x\n", dir, dir_offsets[dir-1], cf+1, file_offsets[cf]);
+			offset += 4;
+			file_sizes[cf] = _c32(buf, offset);
+			printf("Offset %d (0x%06x) File %d Size: %d bytes\n", dir, dir_offsets[dir-1], cf+1, file_sizes[cf]);
+			FILE *ptr_outfile;
+			char file[256];
+			uint8_t *temp_buffer;
+			temp_buffer = (uint8_t*)malloc(file_sizes[cf]*sizeof(uint8_t));
+			for (int i = 0; i < file_sizes[cf]; i++) {
+				temp_buffer[i] = buf[file_offsets[cf]+i];
+			}
+			sprintf(file, "%s/out_%d.mp3", outdir, cf+1);
+			printf("Writing %s\n", file);
+			ptr_outfile = fopen(file, "w+");
+			fwrite(temp_buffer, file_sizes[cf], 1, ptr_outfile);
+			fclose(ptr_outfile);
+		}
+		offset = backup_offset;
+		offset += 4;
+	}
+	return(NO_ERROR);
 }
 
 /* jq6500 mkjqfs - Program the SPI flash of a JQ6500 MP3 player module.
