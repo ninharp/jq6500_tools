@@ -1,4 +1,7 @@
-# JQ6500 Linux Toolset
+[![Github All Releases](https://img.shields.io/github/downloads/ninharp/jq6500_tools/total.svg)]()
+[![Twitter Follow](https://img.shields.io/twitter/follow/ninharp.svg?style=social&label=Follow)](https://twitter.com/ninharp)
+
+# JQ6500 MP3 IC - Linux Toolset
 
 ## JQT6500 Flash Tool
 
@@ -27,15 +30,22 @@ Usage: jq6500cmd [options]
 
 -p | --play                  Sending Play Command
 
+-I | --play-idx [idx]        Play Track [idx]
+
 -s | --pause                 Sending Pause Command
 
 -N | --next                  Skip to next Track
 
 -P | --prev                  Skip to previous Track
 
--U | --vol-up                Volume Up
+-U | --vol-up                Volume up
 
--D | --vol-down              Volume Down
+-D | --vol-down              Volume down
+
+-F | --next-dir              Skip to next folder
+
+-G | --prev-dir              Skip to previous folder
+
+-V | --fwversion             Get Firmware Version
 
 -h | --help                  This help
-
