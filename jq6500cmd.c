@@ -102,6 +102,9 @@ int main (int argc, char *argv[])
        {"prev",      no_argument,         0, 'P'},
        {"vol-up",    no_argument,         0, 'U'},
        {"vol-down",  no_argument,         0, 'D'},
+       {"fwversion", no_argument,         0, 'V'},
+       {"next-dir",  no_argument,         0, 'F'},
+       {"prev-dir",  no_argument,         0, 'G'},
        {"baud",      required_argument,   0, 'b'},
        {"device",    required_argument,   0, 'd'},
        {0, 0, 0, 0}
@@ -109,7 +112,7 @@ int main (int argc, char *argv[])
 
    //Specifying the expected options
    //while ((option = getopt(argc, argv, "d:b::psNP+-h")) != -1) {
-   while ((option = getopt_long (argc, argv, "d:b::psNPh", long_options, &option_index)) != -1) {
+   while ((option = getopt_long (argc, argv, "d:b::psNPUDVh", long_options, &option_index)) != -1) {
       switch (option) {
          case 'd' :  devicename = optarg;
                      break;
@@ -142,7 +145,18 @@ int main (int argc, char *argv[])
                      cmd = JQ6500_CTRL_VOL_DOWN;
                      strcpy(command, create_command(cmd, 0, 0, 0));
                      break;
-
+         case 'V' :  send_command = 1;
+                     cmd = JQ6500_QUERY_GET_VER;
+                     strcpy(command, create_command(cmd, 0, 0, 0));
+                     break;
+         case 'F' :  send_command = 1;
+                     cmd = JQ6500_CTRL_CHG_FOLDER;
+                     strcpy(command, create_command(cmd, 1, JQ6500_NEXT_FOLDER, 0));
+                     break;
+         case 'G' :  send_command = 1;
+                     cmd = JQ6500_CTRL_CHG_FOLDER;
+                     strcpy(command, create_command(cmd, 1, JQ6500_PREV_FOLDER, 0));
+                     break;
          case 'h' :  print_usage();
                      exit(EXIT_FAILURE);
       }
@@ -187,6 +201,7 @@ int main (int argc, char *argv[])
       case JQ6500_CTRL_NEXT: printf("Sending Command 'Next Track'\n"); break;
       case JQ6500_CTRL_VOL_UP: printf("Sending Command 'Volume Up'\n"); break;
       case JQ6500_CTRL_VOL_DOWN: printf("Sending Command 'Volume Down'\n"); break;
+      case JQ6500_QUERY_GET_VER: printf("Querying Version Information\n"); break;
    }
 
    /*
@@ -227,23 +242,45 @@ int main (int argc, char *argv[])
 
 
    memset(buf, 0, 255);
+   memset(response, 0, 16);
    write(fd, command, command_len);
    
-   int lines = 0;
    int STOP = false;
+   int c = 0;
 
    while (STOP == false)
    {
       // after receiving SIGIO, wait_flag = FALSE, input is available and can be read
-         res = read(fd, buf, 255);
-         if (buf[0] > 70)
-            strcat(response, buf);
+      if (wait_flag == true)  //if input is available
+      {
+         res = read(fd, buf, 1);
+         if (res == 1) {
+            response[c++] = buf[0];
+            if (verbose_flag) printf("%d 0x%02X\n", c, buf[0]);
+         }
+
          if (strcmp(response, "OK") == 0) {
             printf("OK received!\n");
             memset(response, 0, 16);
             STOP = true;
          }
-         printf(" .%s\n", response);
+         if (strcmp(response, "ERROR") == 0) {
+            printf("Error received!\n");
+            memset(response, 0, 16);
+            STOP = true;
+         }
+         if (strcmp(response, "STOP") == 0) {
+            printf("Stop received!\n");
+            memset(response, 0, 16);
+            STOP = true;
+         }
+
+         if (cmd == JQ6500_QUERY_GET_VER && c == 4) {
+            printf("Version %s\n", response);
+            STOP = true;
+         }
+         wait_flag = true; // wait for new input
+      }
 
    }  //while stop==FALSE
 
@@ -254,13 +291,14 @@ int main (int argc, char *argv[])
 
 char* create_command(char command, int argc, int arg1, int arg2)
 {
+   
    char *ret = (char*)malloc(argc*sizeof(char)+1);
    if (argc == 0)
       sprintf(ret, "%c%c%c%c", JQ6500_CMD_PREFIX, 2, command, JQ6500_CMD_TERM);
-   else if (argc == 4)
-      sprintf(ret, "%c%c%c%c%c%c", JQ6500_CMD_PREFIX, 4, command, arg1, arg2, JQ6500_CMD_TERM);
-   else if (argc == 3)
+   else if (argc == 1)
       sprintf(ret, "%c%c%c%c%c", JQ6500_CMD_PREFIX, 3, command, arg1, JQ6500_CMD_TERM);
+      else if (argc == 2)
+      sprintf(ret, "%c%c%c%c%c%c", JQ6500_CMD_PREFIX, 4, command, arg1, arg2, JQ6500_CMD_TERM);
    else 
       return NULL;
    return ret;

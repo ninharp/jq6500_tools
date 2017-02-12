@@ -64,6 +64,9 @@ typedef enum {
                                           // The index number being the index in the FAT table, or upload order.
                                           // Argument 1 = high 8 bits of index number, Argument 2 = low 8 bits of index number.
 #define JQ6500_CTRL_CHG_FOLDER   0x0F     // Change folder. 1 Argument.  Argument 1 = 0x01 for Next Folder, 0x00 for Previous Folder. 
+#define 	JQ6500_NEXT_FOLDER		0x01
+#define		JQ6500_PREV_FOLDER		0x00
+
 #define JQ6500_CTRL_PLAY_NAME    0x12     // Play file by folder and name, 2 Arguments.  This applies to SD Card only where you have 
                                           // folders named 01 through 99, and files in those folders named 001.mp3 through 999.mp3.
                                           // Argument 1 = folder number, Argument 2 = file number.  Note that arguments are a single byte,
