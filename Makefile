@@ -1,6 +1,6 @@
 # jq6500 tools - JQ6500 Toolset Makefile
 
-VERSION = 0.11
+VERSION = 0.12
 
 # paths
 PREFIX = /usr/local
@@ -51,15 +51,15 @@ jq6500cmd: ${OBJ_CMD}
 
 clean:
 	@echo cleaning
-	@rm -f jq6500flash ${OBJ_FLASH} jq6500cmd ${OBJ_CMD} jq6500flash-${VERSION}.tar.gz
+	@rm -f jq6500flash ${OBJ_FLASH} jq6500cmd ${OBJ_CMD} jq6500tools-${VERSION}.tar.gz
 
 dist: clean
 	@echo creating dist tarball
-	@mkdir -p jq6500-${VERSION}
-	@cp -R LICENSE Makefile README.md jq6500flash.c jq6500fs.c jq6500fs.h jq6500cmd.c jq6500flash-${VERSION}
-	@tar -cf jq6500flash-${VERSION}.tar jq6500flash-${VERSION}
-	@gzip jq6500flash-${VERSION}.tar
-	@rm -rf jq6500flash-${VERSION}
+	@mkdir -p jq6500tools-${VERSION}
+	@cp -R LICENSE Makefile README.md jq6500serial.h jq6500flash.c jq6500fs.c jq6500fs.h jq6500cmd.c jq6500tools-${VERSION}
+	@tar -cf jq6500tools-${VERSION}.tar jq6500tools-${VERSION}
+	@gzip jq6500tools-${VERSION}.tar
+	@rm -rf jq6500tools-${VERSION}
 
 install: all
 	@echo installing executable file to ${DESTDIR}${PREFIX}/bin
