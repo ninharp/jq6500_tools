@@ -144,7 +144,6 @@ JQ6500_ERR_t jq6500_read_iso_F(char *infile, char *outfile)
 JQ6500_ERR_t jq6500_read_files_F(char *infile, char *outdir, int offset)
 {
 	FILE *ptr_infile;
-	FILE *ptr_outfile;
 
 	unsigned long fileLen;
 	uint8_t *temp_buffer;
