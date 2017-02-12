@@ -42,9 +42,10 @@ SOFTWARE.
 #include <sys/types.h>
 #include <errno.h>
 #include <err.h>
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-#define MODEMDEVICE "/dev/ttyUSB0"
+#include <getopt.h>
+
+#include <jq6500serial.h>
+
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define MAX_CMD_CHARS 16
 /* Private macro -------------------------------------------------------------*/
@@ -56,6 +57,7 @@ char Key;
 volatile bool STOP = false;
 int wait_flag = true;
 /* Private function prototypes -----------------------------------------------*/
+char* create_command(char command, int argc, int arg1, int arg2);
 void print_usage();
 long get_baudrate(long baudrate);
 void signal_handler_IO(int status);
@@ -72,9 +74,11 @@ int main (int argc, char *argv[])
    struct sigaction saio;               //definition of signal action
    char buf[255];
    int option = 0;
+   int option_index = 0;
    char *devicename = NULL;
    long baudrate = 9600;
    char *endptr;
+   char command[6] = "";
    
    printf("JQT6500 Command Tool " VERSION " - (c) by Michael Sauer\n\n");
 
@@ -83,8 +87,22 @@ int main (int argc, char *argv[])
       exit(EXIT_FAILURE);   
    }
 
+   static struct option long_options[] =
+   {
+       {"play",      no_argument,         0, 'p'},
+       {"pause",     no_argument,         0, 's'},
+       {"next",      no_argument,         0, 'N'},
+       {"prev",      no_argument,         0, 'P'},
+       {"vol-up",    no_argument,         0, 'U'},
+       {"vol-down",  no_argument,         0, 'D'},
+       {"baud",      required_argument,   0, 'b'},
+       {"device",    required_argument,   0, 'd'},
+       {0, 0, 0, 0}
+   };
+
    //Specifying the expected options
-   while ((option = getopt(argc, argv, "d:b::h")) != -1) {
+   //while ((option = getopt(argc, argv, "d:b::psNP+-h")) != -1) {
+   while ((option = getopt_long (argc, argv, "d:b::psNPh", long_options, &option_index)) != -1) {
       switch (option) {
          case 'd' :  errno = 0;
                      devicename = optarg;
@@ -95,6 +113,31 @@ int main (int argc, char *argv[])
                          errx(1, "Invalid number in baudrate: '%s'", optarg);
                      }*/
                      break;
+         case 'p' :  errno = 0;
+                     printf("Sending 'Play' Command\n");
+                     strcpy(command, create_command(JQ6500_CTRL_PLAY, 0, 0, 0));
+                     break;
+         case 's' :  errno = 0;
+                     printf("Sending 'Pause' Command\n");
+                     strcpy(command, create_command(JQ6500_CTRL_PAUSE, 0, 0, 0));
+                     break;
+         case 'N' :  errno = 0;
+                     printf("Sending 'Next' Command\n");
+                     strcpy(command, create_command(JQ6500_CTRL_NEXT, 0, 0, 0));
+                     break;
+         case 'P' :  errno = 0;
+                     printf("Sending 'Previous' Command\n");
+                     strcpy(command, create_command(JQ6500_CTRL_PREV, 0, 0, 0));
+                     break;
+         case 'U' :  errno = 0;
+                     printf("Sending 'Volume Up' Command\n");
+                     strcpy(command, create_command(JQ6500_CTRL_VOL_UP, 0, 0, 0));
+                     break;
+         case 'D' :  errno = 0;
+                     printf("Sending 'Volume Down' Command\n");
+                     strcpy(command, create_command(JQ6500_CTRL_VOL_DOWN, 0, 0, 0));
+                     break;
+
          case 'h' :  print_usage();
                      exit(EXIT_FAILURE);
                      break;
@@ -116,6 +159,17 @@ int main (int argc, char *argv[])
 
    printf("Using device: %s\n", devicename);
    printf("Baudrate: %ld baud\n", baudrate);
+
+
+   printf("Command String: ");
+   for (int i = 0; i < 6; i++) {
+      if (command[i] == 0x00) {
+         printf("\n");
+         break;
+      } else {
+         printf("0x%02X ", (uint8_t)command[i]);
+      }
+   }
 
    /*
     Open modem device for reading and writing and not as controlling tty
@@ -190,12 +244,32 @@ int main (int argc, char *argv[])
    return(EXIT_SUCCESS);
 }
 
+char* create_command(char command, int argc, int arg1, int arg2)
+{
+   char *ret = (char*)malloc(argc*sizeof(char)+1);
+   if (argc == 0)
+      sprintf(ret, "%c%c%c%c", JQ6500_CMD_PREFIX, 2, command, JQ6500_CMD_TERM);
+   else if (argc == 4)
+      sprintf(ret, "%c%c%c%c%c%c", JQ6500_CMD_PREFIX, 4, command, arg1, arg2, JQ6500_CMD_TERM);
+   else if (argc == 3)
+      sprintf(ret, "%c%c%c%c%c", JQ6500_CMD_PREFIX, 3, command, arg1, JQ6500_CMD_TERM);
+   else 
+      return NULL;
+   return ret;
+}
+
 void print_usage()
 {
    printf("Usage: jq6500cmd [options]\n\n"
-        "-d device         Serial device to use\n"
-        "-b baudrate       Serial baudrate (default: 9600)\n"
-        "-h                This help\n\n");
+        "\t-d | --device=device         Serial device to use\n"
+        "\t-b | --baud=baudrate         Serial baudrate (default: 9600)\n"
+        "\t-p | --play                  Sending Play Command\n"
+        "\t-s | --pause                 Sending Pause Command\n"
+        "\t-N | --next                  Skip to next Track\n"
+        "\t-P | --prev                  Skip to previous Track\n"
+        "\t-U | --vol-up                Volume Up\n"
+        "\t-D | --vol-down              Volume Down\n"
+        "\t-h | --help                  This help\n\n");
 }
 
 long get_baudrate(long baudrate)

@@ -21,9 +21,21 @@ Usage: jq6500flash [options]
 
 Usage: jq6500cmd [options]
 
--d device         Serial device to use
+-d | --device=device         Serial device to use
 
--b baudrate       Serial baudrate (default: 9600)
+-b | --baud=baudrate         Serial baudrate (default: 9600)
 
--h                This help
+-p | --play                  Sending Play Command
+
+-s | --pause                 Sending Pause Command
+
+-N | --next                  Skip to next Track
+
+-P | --prev                  Skip to previous Track
+
+-U | --vol-up                Volume Up
+
+-D | --vol-down              Volume Down
+
+-h | --help                  This help
 
