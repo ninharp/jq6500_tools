@@ -22,6 +22,7 @@
 
 # Executables
 jq6500flash
+jq6500cmd
 *.exe
 *.out
 *.app
@@ -37,6 +38,7 @@ ISO/
 temp/
 
 # Image files
+*.dump
 *.img
 *.iso
 *.dat

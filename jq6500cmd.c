@@ -55,6 +55,7 @@ int status;
 char Key;
 
 volatile bool STOP = false;
+static int verbose_flag;
 int wait_flag = true;
 /* Private function prototypes -----------------------------------------------*/
 char* create_command(char command, int argc, int arg1, int arg2);
@@ -69,15 +70,19 @@ Main Routine
 */
 int main (int argc, char *argv[])
 {
-   int fd;
+   int fd, res;
    struct termios oldtio, newtio;
    struct sigaction saio;               //definition of signal action
    char buf[255];
+   char response[16];
    int option = 0;
    int option_index = 0;
    char *devicename = NULL;
    long baudrate = 9600;
    char *endptr;
+   int send_command = 0;
+   int command_len = 0;
+   char cmd = 0;
    char command[6] = "";
    
    printf("JQT6500 Command Tool " VERSION " - (c) by Michael Sauer\n\n");
@@ -89,6 +94,8 @@ int main (int argc, char *argv[])
 
    static struct option long_options[] =
    {
+       {"verbose",   no_argument,         &verbose_flag, 1},
+       {"brief",     no_argument,         &verbose_flag, 0},
        {"play",      no_argument,         0, 'p'},
        {"pause",     no_argument,         0, 's'},
        {"next",      no_argument,         0, 'N'},
@@ -104,45 +111,40 @@ int main (int argc, char *argv[])
    //while ((option = getopt(argc, argv, "d:b::psNP+-h")) != -1) {
    while ((option = getopt_long (argc, argv, "d:b::psNPh", long_options, &option_index)) != -1) {
       switch (option) {
-         case 'd' :  errno = 0;
-                     devicename = optarg;
+         case 'd' :  devicename = optarg;
                      break;
-         case 'b' :  errno = 0;
-                     baudrate = strtol(optarg, &endptr, 0);
+         case 'b' :  baudrate = strtol(optarg, &endptr, 0);
                      /*if (errno != 0 || *optarg == 0 || *endptr == 0) {
                          errx(1, "Invalid number in baudrate: '%s'", optarg);
                      }*/
                      break;
-         case 'p' :  errno = 0;
-                     printf("Sending 'Play' Command\n");
-                     strcpy(command, create_command(JQ6500_CTRL_PLAY, 0, 0, 0));
+         case 'p' :  send_command = 1;
+                     cmd = JQ6500_CTRL_PLAY;
+                     strcpy(command, create_command(cmd, 0, 0, 0));
                      break;
-         case 's' :  errno = 0;
-                     printf("Sending 'Pause' Command\n");
-                     strcpy(command, create_command(JQ6500_CTRL_PAUSE, 0, 0, 0));
+         case 's' :  send_command = 1;
+                     cmd = JQ6500_CTRL_PAUSE;
+                     strcpy(command, create_command(cmd, 0, 0, 0));
                      break;
-         case 'N' :  errno = 0;
-                     printf("Sending 'Next' Command\n");
-                     strcpy(command, create_command(JQ6500_CTRL_NEXT, 0, 0, 0));
+         case 'N' :  send_command = 1;
+                     cmd = JQ6500_CTRL_NEXT;
+                     strcpy(command, create_command(cmd, 0, 0, 0));
                      break;
-         case 'P' :  errno = 0;
-                     printf("Sending 'Previous' Command\n");
-                     strcpy(command, create_command(JQ6500_CTRL_PREV, 0, 0, 0));
+         case 'P' :  send_command = 1;
+                     cmd = JQ6500_CTRL_PREV;
+                     strcpy(command, create_command(cmd, 0, 0, 0));
                      break;
-         case 'U' :  errno = 0;
-                     printf("Sending 'Volume Up' Command\n");
-                     strcpy(command, create_command(JQ6500_CTRL_VOL_UP, 0, 0, 0));
+         case 'U' :  send_command = 1;
+                     cmd = JQ6500_CTRL_VOL_UP;
+                     strcpy(command, create_command(cmd, 0, 0, 0));
                      break;
-         case 'D' :  errno = 0;
-                     printf("Sending 'Volume Down' Command\n");
-                     strcpy(command, create_command(JQ6500_CTRL_VOL_DOWN, 0, 0, 0));
+         case 'D' :  send_command = 1;
+                     cmd = JQ6500_CTRL_VOL_DOWN;
+                     strcpy(command, create_command(cmd, 0, 0, 0));
                      break;
 
          case 'h' :  print_usage();
                      exit(EXIT_FAILURE);
-                     break;
-         default: print_usage(); 
-                  exit(EXIT_FAILURE);
       }
    }
 
@@ -153,22 +155,38 @@ int main (int argc, char *argv[])
 
    if (get_baudrate(baudrate) == 0) {
       printf("Error: Unknown Baudrate: %ld\n\n", baudrate);
-      print_usage();
       exit(EXIT_FAILURE);
    }
 
+   if (send_command == 0) {
+      printf("Error: No Command specified!\n\n");
+      exit(EXIT_FAILURE);  
+   }
+
    printf("Using device: %s\n", devicename);
-   printf("Baudrate: %ld baud\n", baudrate);
+   printf("Baudrate: %ld baud\n\n", baudrate);
 
-
-   printf("Command String: ");
+   if (verbose_flag)
+      printf("Command String: ");
    for (int i = 0; i < 6; i++) {
       if (command[i] == 0x00) {
-         printf("\n");
+         command_len = i;
+         if (verbose_flag)
+            printf("\n");
          break;
       } else {
-         printf("0x%02X ", (uint8_t)command[i]);
+         if (verbose_flag)
+            printf("0x%02X ", (uint8_t)command[i]);
       }
+   }
+
+   switch (cmd) {
+      case JQ6500_CTRL_PLAY: printf("Sending Command 'Play'\n"); break;
+      case JQ6500_CTRL_PAUSE: printf("Sending Command 'Pause'\n"); break;
+      case JQ6500_CTRL_PREV: printf("Sending Command 'Previous Track'\n"); break;
+      case JQ6500_CTRL_NEXT: printf("Sending Command 'Next Track'\n"); break;
+      case JQ6500_CTRL_VOL_UP: printf("Sending Command 'Volume Up'\n"); break;
+      case JQ6500_CTRL_VOL_DOWN: printf("Sending Command 'Volume Down'\n"); break;
    }
 
    /*
@@ -209,36 +227,26 @@ int main (int argc, char *argv[])
 
 
    memset(buf, 0, 255);
-   //write(fd, "halt\r", 5);
+   write(fd, command, command_len);
    
-   /*
-   //write(fd, "head\r\n", 6);
    int lines = 0;
-   // STop here for testing purposes
-   //STOP = false;
+   int STOP = false;
+
    while (STOP == false)
    {
       // after receiving SIGIO, wait_flag = FALSE, input is available and can be read
-      if (wait_flag == true)  //if input is available
-      {
          res = read(fd, buf, 255);
-         //buf[res] = 0;
-         printf("%s\r\n", buf);
-         //STOP == TRUE;
-         if (res==1) STOP=true; // stop loop if only a CR was input
-         wait_flag = true; // wait for new input
-         if (res > 0)
-            lines++;
-         if (lines >= 1)
-         {
-            printf("\r\n");
-            exit(0);
+         if (buf[0] > 70)
+            strcat(response, buf);
+         if (strcmp(response, "OK") == 0) {
+            printf("OK received!\n");
+            memset(response, 0, 16);
+            STOP = true;
          }
-      }  //end if wait flag == FALSE
+         printf(" .%s\n", response);
 
    }  //while stop==FALSE
-      //
-   */
+
    /* restore the old port settings */
    tcsetattr(fd, TCSANOW, &oldtio);
    return(EXIT_SUCCESS);
