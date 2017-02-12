@@ -1,6 +1,6 @@
 # JQ6500 Linux Toolset
 
-## JQT6500 Flash Tool 0.1
+## JQT6500 Flash Tool
 
 Usage: jq6500flash [options]
 
@@ -17,7 +17,7 @@ Usage: jq6500flash [options]
 -h                This help
 
 
-## JQT6500 Command Tool 0.11 - (c) by Michael Sauer
+## JQT6500 Command Tool
 
 Usage: jq6500cmd [options]
 
