@@ -58,9 +58,11 @@ volatile bool STOP = false;
 static int verbose_flag;
 int wait_flag = true;
 /* Private function prototypes -----------------------------------------------*/
-uint8_t* create_command(char command, uint8_t argc, uint8_t arg1, uint8_t arg2);
+void create_command(uint8_t *out, char command, uint8_t argc, uint8_t arg1, uint8_t arg2);
 void print_usage();
 long get_baudrate(long baudrate);
+char* get_eq_name(uint8_t idx);
+char* get_loop_name(uint8_t idx);
 void signal_handler_IO(int status);
 /* Public functions ----------------------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
@@ -72,7 +74,7 @@ int main (int argc, char *argv[])
 {
    int fd, res;
    struct termios oldtio, newtio;
-   struct sigaction saio;               //definition of signal action
+   struct sigaction saio;
    char buf[255];
    char response[16];
    int option = 0;
@@ -83,7 +85,8 @@ int main (int argc, char *argv[])
    int send_command = 0;
    int command_len = 0;
    char cmd = 0;
-   char command[8] = "";
+   //uint8_t command[8] = "";
+   uint8_t *command;
    
    printf("JQT6500 Command Tool " VERSION " - (c) by Michael Sauer\n\n");
 
@@ -106,15 +109,23 @@ int main (int argc, char *argv[])
        {"fwversion", no_argument,         0, 'V'},
        {"next-dir",  no_argument,         0, 'F'},
        {"prev-dir",  no_argument,         0, 'G'},
+       {"help",      no_argument,         0, 'h'},
        {"baud",      required_argument,   0, 'b'},
        {"device",    required_argument,   0, 'd'},
+       {"get-eq",    no_argument,         0, 'E'},
+       {"get-loop",  no_argument,         0, 'l'},
+       {"set-loop",  required_argument,   0, 'L'},
+       {"get-volume",no_argument,         0, '1'},
+       {"set-volume",required_argument,   0, '2'},
+       {"set-eq",    required_argument,   0, '3'},
        {0, 0, 0, 0}
    };
 
    uint16_t idx = 0; // Index Play helping variable
+   command = (uint8_t*)malloc(7*sizeof(uint8_t));
    //Specifying the expected options
    //while ((option = getopt(argc, argv, "d:b::psNP+-h")) != -1) {
-   while ((option = getopt_long (argc, argv, "d:b::pI:sNPUDVh", long_options, &option_index)) != -1) {
+   while ((option = getopt_long (argc, argv, "d:b::pI:sNPUDVlL123Eh", long_options, &option_index)) != -1) {
       switch (option) {
          case 'd' :  devicename = optarg;
                      break;
@@ -125,53 +136,95 @@ int main (int argc, char *argv[])
                      break;
          case 'p' :  send_command = 1;
                      cmd = JQ6500_CTRL_PLAY;
-                     strcpy(command, (char*)create_command(cmd, 0, 0, 0));
+                     create_command(command, cmd, 0, 0, 0);
                      break;
          case 'I' :  cmd = JQ6500_CTRL_PLAY_IDX;
                      idx = atoi(optarg);
                      if (idx > 0 && idx < 65536) {
                         send_command = 1;
                         if (idx > 255) {
-                           strcpy(command, (char*)create_command(cmd, 2, (uint8_t)(idx<<8), (uint8_t)(idx & 0xFF00)));
+                           create_command(command, cmd, 2, (uint8_t)(idx>>8), (uint8_t)(idx & 0xFF));
                         } else {
-                           strcpy(command, (char*)create_command(cmd, 2, 0, (uint8_t)idx));
+                           create_command(command, cmd, 2, 0, (uint8_t)idx);
                         }
                         break;
                      } else {
-                        fprintf(stderr, "Error: Playing index out of range!\n");
+                        fprintf(stderr, "Error: Play index out of range! (1-65535)\n");
                         exit(EXIT_FAILURE);
                      }
          case 's' :  send_command = 1;
                      cmd = JQ6500_CTRL_PAUSE;
-                     strcpy(command, (char*)create_command(cmd, 0, 0, 0));
+                     create_command(command, cmd, 0, 0, 0);
                      break;
          case 'N' :  send_command = 1;
                      cmd = JQ6500_CTRL_NEXT;
-                     strcpy(command, (char*)create_command(cmd, 0, 0, 0));
+                     create_command(command, cmd, 0, 0, 0);
                      break;
          case 'P' :  send_command = 1;
                      cmd = JQ6500_CTRL_PREV;
-                     strcpy(command, (char*)create_command(cmd, 0, 0, 0));
+                     create_command(command, cmd, 0, 0, 0);
                      break;
          case 'U' :  send_command = 1;
                      cmd = JQ6500_CTRL_VOL_UP;
-                     strcpy(command, (char*)create_command(cmd, 0, 0, 0));
+                     create_command(command, cmd, 0, 0, 0);
                      break;
          case 'D' :  send_command = 1;
                      cmd = JQ6500_CTRL_VOL_DOWN;
-                     strcpy(command, (char*)create_command(cmd, 0, 0, 0));
+                     create_command(command, cmd, 0, 0, 0);
                      break;
          case 'V' :  send_command = 1;
                      cmd = JQ6500_QUERY_GET_VER;
-                     strcpy(command, (char*)create_command(cmd, 0, 0, 0));
+                     create_command(command, cmd, 0, 0, 0);
+                     break;
+         case 'l' :  send_command = 1;
+                     cmd = JQ6500_QUERY_GET_LOOP;
+                     create_command(command, cmd, 0, 0, 0);
+                     break;
+         case 'L' :  send_command = 1;
+                     cmd = JQ6500_CTRL_SET_LOOP;
+                     idx = atoi(optarg);
+                     if (idx >= 0 && idx <= 5) {
+                        create_command(command, cmd, 1, idx, 0);
+                        break;
+                     } else {
+                        fprintf(stderr, "Error: Loop out of range! (0-5)\n");
+                        exit(EXIT_FAILURE);
+                     }
+         case '1' :  send_command = 1;
+                     cmd = JQ6500_QUERY_GET_VOL;
+                     create_command(command, cmd, 0, 0, 0);
+                     break;
+         case '2' :  send_command = 1;
+                     cmd = JQ6500_CTRL_SET_VOL;
+                     idx = atoi(optarg);
+                     if (idx >= 0 && idx <= 30) {
+                        create_command(command, cmd, 1, idx, 0);
+                        break;
+                     } else {
+                        fprintf(stderr, "Error: Volume out of range! (0-30)\n");
+                        exit(EXIT_FAILURE);
+                     }
+         case '3' :  send_command = 1;
+                     cmd = JQ6500_CTRL_SET_EQ;
+                     idx = atoi(optarg);
+                     if (idx >= 0 && idx <= 6) {
+                        create_command(command, cmd, 1, idx, 0);
+                        break;
+                     } else {
+                        fprintf(stderr, "Error: EQ mode out of range! (0-6)\n");
+                        exit(EXIT_FAILURE);
+                     }
+         case 'E' :  send_command = 1;
+                     cmd = JQ6500_QUERY_GET_EQ;
+                     create_command(command, cmd, 0, 0, 0);
                      break;
          case 'F' :  send_command = 1;
                      cmd = JQ6500_CTRL_CHG_FOLDER;
-                     strcpy(command, (char*)create_command(cmd, 1, JQ6500_NEXT_FOLDER, 0));
+                     create_command(command, cmd, 1, JQ6500_NEXT_FOLDER, 0);
                      break;
          case 'G' :  send_command = 1;
                      cmd = JQ6500_CTRL_CHG_FOLDER;
-                     strcpy(command, (char*)create_command(cmd, 1, JQ6500_PREV_FOLDER, 0));
+                     create_command(command, cmd, 1, JQ6500_PREV_FOLDER, 0);
                      break;
          case 'h' :  print_usage();
                      exit(EXIT_FAILURE);
@@ -209,6 +262,7 @@ int main (int argc, char *argv[])
             printf("0x%02X ", (uint8_t)command[i]);
       }
    }
+   if (verbose_flag) printf("\n");
 
    switch (cmd) {
       case JQ6500_CTRL_PLAY:        printf("Sending Command 'Play'\n"); break;
@@ -218,7 +272,13 @@ int main (int argc, char *argv[])
       case JQ6500_CTRL_NEXT:        printf("Sending Command 'Next Track'\n"); break;
       case JQ6500_CTRL_VOL_UP:      printf("Sending Command 'Volume Up'\n"); break;
       case JQ6500_CTRL_VOL_DOWN:    printf("Sending Command 'Volume Down'\n"); break;
+      case JQ6500_CTRL_SET_VOL:     printf("Set Volume %d\n", idx); break;
+      case JQ6500_CTRL_SET_EQ:      printf("Set EQ Mode %s\n", get_eq_name(idx)); break;
+      case JQ6500_CTRL_SET_LOOP:    printf("Set Loop Mode %s\n", get_loop_name(idx)); break;
       case JQ6500_QUERY_GET_VER:    printf("Querying Version Information\n"); break;
+      case JQ6500_QUERY_GET_LOOP:   printf("Querying Loop Mode\n"); break;
+      case JQ6500_QUERY_GET_EQ:     printf("Querying EQ Mode\n"); break;
+      case JQ6500_QUERY_GET_VOL:    printf("Querying Current Volume\n"); break;
    }
 
    /*
@@ -248,18 +308,19 @@ int main (int argc, char *argv[])
 
    tcgetattr(fd, &oldtio); // save current port settings
    // set new port settings for canonical input processing
-   newtio.c_cflag = get_baudrate(baudrate) | CS8 | CLOCAL | CREAD;
-   newtio.c_iflag = IGNPAR;
+   newtio.c_cflag = get_baudrate(baudrate) | CREAD;
+   newtio.c_cflag &= ~CLOCAL;
+   newtio.c_iflag = IGNPAR | IGNBRK;
    newtio.c_oflag = 0;
-   newtio.c_lflag = 0;       //ICANON;
-   newtio.c_cc[VMIN] = 1;
-   newtio.c_cc[VTIME] = 0;
+   newtio.c_lflag = 0;
+   newtio.c_cc[VMIN] = 2;
+   newtio.c_cc[VTIME] = 1;
    tcflush(fd, TCIFLUSH);
    tcsetattr(fd, TCSANOW, &newtio);
 
-
    memset(buf, 0, 255);
    memset(response, 0, 16);
+
    write(fd, command, command_len);
    
    int STOP = false;
@@ -295,49 +356,56 @@ int main (int argc, char *argv[])
          if (cmd == JQ6500_QUERY_GET_VER && c == 4) {
             printf("Version %s\n", response);
             STOP = true;
+         } else if (cmd == JQ6500_QUERY_GET_VOL && c == 4) {
+            printf("Current Volume: %d\n", (int)strtol(response, NULL, 16));
+            STOP = true;
+         } else if (cmd == JQ6500_QUERY_GET_EQ && c == 4) {
+            printf("Current EQ Mode: %s\n", get_eq_name((int)strtol(response, NULL, 16)));
+            STOP = true;
+         } else if (cmd == JQ6500_QUERY_GET_LOOP && c == 4) {
+            printf("Current Loop Mode: %s\n", get_loop_name((int)strtol(response, NULL, 16)));
+            STOP = true;
+         } else if (cmd == JQ6500_CTRL_SET_EQ) {
+            STOP = true;
          }
          wait_flag = true; // wait for new input
       }
 
    }  //while stop==FALSE
 
+   printf("\n");
+
    /* restore the old port settings */
    tcsetattr(fd, TCSANOW, &oldtio);
    return(EXIT_SUCCESS);
 }
 
-uint8_t* create_command(char command, uint8_t argc, uint8_t arg1, uint8_t arg2)
+void create_command(uint8_t *out, char command, uint8_t argc, uint8_t arg1, uint8_t arg2)
 {
    
-   uint8_t *ret = (uint8_t*)malloc(10*sizeof(uint8_t));
    int len = 0;
    if (argc == 0)
       len = 2;
-      //snprintf(ret, 5, "%c%c%c%c", JQ6500_CMD_PREFIX, 2, command, JQ6500_CMD_TERM);
    else if (argc == 1)
       len = 3;
-      //snprintf(ret, 6, "%c%c%c%c%c", JQ6500_CMD_PREFIX, 3, command, arg1, JQ6500_CMD_TERM);
    else if (argc == 2)
       len = 4;
-      //snprintf(ret, 7, "%c%c%c%c%c%c", (uint8_t)JQ6500_CMD_PREFIX, (uint8_t)4, (uint8_t)command, (uint8_t)arg1, (uint8_t)arg2, (uint8_t)JQ6500_CMD_TERM);
    else 
-      return NULL;
+      return;
 
-   ret[0] = (uint8_t)JQ6500_CMD_PREFIX;
-   ret[1] = (uint8_t)len;
-   ret[2] = (uint8_t)command;
+   out[0] = (uint8_t)JQ6500_CMD_PREFIX;
+   out[1] = (uint8_t)len;
+   out[2] = (uint8_t)command;
    if (argc == 0) {
-      ret[3] = (uint8_t)JQ6500_CMD_TERM;
+      out[3] = (uint8_t)JQ6500_CMD_TERM;
    } else if (argc == 1) {
-      ret[3] = (uint8_t)arg1;
-      ret[4] = (uint8_t)JQ6500_CMD_TERM;
+      out[3] = (uint8_t)arg1;
+      out[4] = (uint8_t)JQ6500_CMD_TERM;
    } else if (argc == 2) {
-      ret[3] = (uint8_t)arg1;
-      ret[4] = (uint8_t)arg2;
-      ret[5] = (uint8_t)JQ6500_CMD_TERM;
+      out[3] = (uint8_t)arg1;
+      out[4] = (uint8_t)arg2;
+      out[5] = (uint8_t)JQ6500_CMD_TERM;
    }
-
-   return ret;
 }
 
 void print_usage()
@@ -356,6 +424,31 @@ void print_usage()
         "\t-G | --prev-dir              Skip to previous folder\n"
         "\t-V | --fwversion             Get Firmware Version\n"
         "\t-h | --help                  This help\n\n");
+}
+
+char* get_eq_name(uint8_t idx)
+{
+   switch (idx) {
+      case EQ_NORMAL:   return "Normal";
+      case EQ_POP:      return "Pop";
+      case EQ_ROCK:     return "Rock";
+      case EQ_JAZZ:     return "Jazz";
+      case EQ_CLASSIC:  return "Classic";
+      case EQ_BASS:     return "Bass";
+      default:          return "Error";
+   }
+}
+
+char* get_loop_name(uint8_t idx)
+{
+   switch (idx) {
+      case LOOP_ALL:       return "All";
+      case LOOP_FOLDER:    return "Folder";
+      case LOOP_ONE:       return "One";
+      case LOOP_RAM:       return "RAM";
+      case LOOP_ONE_STOP:  return "One Stop";
+      default:             return "Error";
+   }
 }
 
 long get_baudrate(long baudrate)
@@ -380,7 +473,7 @@ long get_baudrate(long baudrate)
 
 void signal_handler_IO (int status)
 {
-   //printf("received SIGIO signal.\n");
+   //fprintf(stderr, "Error: Received SIGIO signal.\n");
    wait_flag = false;
 }
 
