@@ -75,7 +75,7 @@ typedef enum {
                                           // (actually  “Base” in the datasheet but I think they mean Bass)
 #define JQ6500_CTRL_SET_LOOP     0x11     // Set Loop Mode, 1 Argument.  Argument 1 = byte value  0/1/2/3/4 for All/Folder/One/Ram/One_Stop
                                           // I don’t know what  “Ram” is, it’s not Random, it seems the same as  “One”.
-#define JQ6500_CTRL_SET_SOURCE   0x09     // Set the source, 1 Argument.  Argument 1 = 0x01 for SDCard and 0x04 for the on board flash memory.
+#define JQ6500_CTRL_SET_SOURCE   0x09     // Set the source, 1 Argument.  Argument 1 = byte value 0/1/2/3/4 for U?/SDCard/AUX/Sleep/Flash
 #define JQ6500_CTRL_SLEEP_MODE   0x0A     // Sleep Mode. No Arguments.  Supposedly a low power mode.
 #define JQ6500_CTRL_RESET        0x0C     // Reset. No Arguments.  It’s advisable to wait 500mS or so after issuing this.
 
