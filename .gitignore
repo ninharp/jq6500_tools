@@ -43,4 +43,5 @@ temp/
 *.iso
 *.dat
 
-# Bin
+# Archives
+*.gz
