@@ -34,8 +34,10 @@ jq6500cmd
 *.dSYM/
 *.su
 
+# Directories
 ISO/
 temp/
+mp3/
 
 # Image files
 *.dump
