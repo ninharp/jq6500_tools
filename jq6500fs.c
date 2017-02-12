@@ -2,7 +2,7 @@
 
 jq6500fs.c - JQ6500 Library to read and write internal flash memory
 
-Copyright (c) 2017 Michael Sauer <sauer@gmail.com>
+Copyright (c) 2017 Michael Sauer <sauer.uetersen@gmail.com>
 
 MIT License
 

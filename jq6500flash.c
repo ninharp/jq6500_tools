@@ -9,7 +9,7 @@ solution to make an own tool for that purposes.
 
 Its currently in alpha stage and still quiet buggy.
 
-Copyright (c) 2017 Michael Sauer <sauer@gmail.com> 
+Copyright (c) 2017 Michael Sauer <sauer.uetersen@gmail.com> 
 Some adaptions of the JQFS Functions 
 Copyright (C) 2017 Reinhard Max <reinhard@m4x.de>
 
