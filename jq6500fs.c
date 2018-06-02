@@ -86,7 +86,8 @@ off_t _isdevice(char *file)
 
 void _w32le(uint8_t **loc, uint32_t val)
 {
-    memcpy(*loc, &htole32(val), 4);
+    uint32_t leval = htole32(val);
+    memcpy(*loc, &leval, 4);
     (*loc) += 4;
 }
 /* Public functions ----------------------------------------------------------*/
